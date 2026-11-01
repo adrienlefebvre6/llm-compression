@@ -22,7 +22,7 @@ Un LLM stocke ses poids en 16 bits. Pour le faire tenir sur une machine plus mod
 
 **Quantification symétrique** ([src/quant.py](src/quant.py)). Chaque poids est remplacé par le point le plus proche d'une grille de 2^b valeurs :
 
-$$q_{\max} = 2^{b-1} - 1, \qquad s = \frac{\max |w_{\text{groupe}}|}{q_{\max}}, \qquad \hat{w} = s \cdot \operatorname{clamp}\left(\operatorname{round}(w / s),\, -q_{\max} - 1,\, q_{\max}\right)$$
+$$q_{\max} = 2^{b-1} - 1, \qquad s = \frac{\max |w_{\text{groupe}}|}{q_{\max}}, \qquad \hat{w} = s \cdot \mathrm{clamp}\left(\mathrm{round}(w / s),\, -q_{\max} - 1,\, q_{\max}\right)$$
 
 L'échelle s est calculée pour toute la matrice (`tensor`), pour chaque ligne (`row`) ou pour chaque groupe de 128 poids consécutifs (`128`). Chaque échelle coûte 16 bits : b + 16/128 bits par poids pour des groupes de 128.
 
