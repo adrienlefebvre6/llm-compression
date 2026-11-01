@@ -18,6 +18,7 @@ SERIES = [
     ("quant", "128", "Quantification, groupes de 128", "#1baf7a", "^"),
     ("lowrank", None, "Rang faible (SVD tronquée)", "#eda100", "D"),
 ]
+UNUSABLE_PPL = 1000
 
 
 def main():
@@ -30,7 +31,7 @@ def main():
              if not os.path.basename(f).startswith("quick_")]
     df = pd.concat([pd.read_csv(f, dtype={"granularity": str}) for f in files])
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(8, 5.8))
     for method, gran, label, color, marker in SERIES:
         rows = df[df.method == method]
         if gran is not None:
@@ -47,13 +48,21 @@ def main():
         ax.axhline(ppl, color="#52514e", linestyle="--", linewidth=1.5,
                    label=f"Modèle d'origine, fp16 (ppl = {ppl:.2f})")
 
+    # Au-delà de ~1000, le modèle ne produit plus que du bruit : les écarts
+    # entre configurations n'y ont plus de sens.
     ax.set_yscale("log")
+    ymin, ymax = ax.get_ylim()
+    ax.axhspan(UNUSABLE_PPL, ymax, color="#f0efec", zorder=0)
+    ax.set_ylim(ymin, ymax)
+    ax.text(ax.get_xlim()[1], UNUSABLE_PPL * 1.3, "modèle inutilisable ",
+            color="#52514e", fontsize=9, ha="right", va="bottom")
+
     ax.set_xlabel("Bits par paramètre (couches compressées)")
     ax.set_ylabel("Perplexité WikiText-2 (échelle log)")
     ax.set_title("Qwen2.5-0.5B : qualité en fonction de la taille")
     ax.grid(True, which="major", color="#e5e5e2", linewidth=0.8)
     ax.spines[["top", "right"]].set_visible(False)
-    ax.legend(frameon=False)
+    ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=2)
     fig.tight_layout()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
