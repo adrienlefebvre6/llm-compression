@@ -5,3 +5,4 @@ __pycache__/
 *.pt
 results/quick_*
 BRIEF.md
+JOURNAL.md

@@ -22,4 +22,20 @@ def lowrank_approx(w: torch.Tensor, rank_ratio: float) -> torch.Tensor:
     Returns:
         ŵ, de même forme et de même type (dtype) que w.
     """
-    raise NotImplementedError
+    
+    m,n = w.shape
+
+    r = max(1, int((rank_ratio * m * n) // (m + n)))
+    x = w.float()
+
+    U,S,Vh = torch.linalg.svd(x, full_matrices = False)
+
+    U_r = U[:,:r]
+    Vh_r = Vh[:r]
+    S_r = S[:r]
+
+    w_r = U_r @ torch.diag(S_r) @ Vh_r
+
+    w_r = w_r.to(w.dtype)
+
+    return w_r
