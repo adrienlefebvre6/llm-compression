@@ -1,0 +1,6 @@
+torch
+transformers>=4.45
+datasets
+pandas
+matplotlib
+pytest
