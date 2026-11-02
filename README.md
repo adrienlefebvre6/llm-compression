@@ -1,6 +1,6 @@
 # Compresser un petit LLM : quantification ou rang faible ?
 
-> **In English.** How much quality does a small LLM (Qwen2.5-0.5B) lose when its weights are compressed? I implemented two methods from scratch, symmetric quantization (8 to 2 bits, per tensor / row / group of 128) and truncated-SVD low-rank approximation, and measured WikiText-2 perplexity. Quantization with groups of 128 is nearly lossless at 8 bits and remains usable at 4 bits (perplexity 16.2 vs 11.5); one scale per matrix fails because LLM weights contain extreme outliers (up to 64 standard deviations). The weight spectra suggest that low-rank approximation will degrade much faster: most MLP layers are almost as "flat" as a random matrix. *Work in progress: the low-rank run on Qwen is next.*
+> **In English.** How much quality does a small LLM (Qwen2.5-0.5B) lose when its weights are compressed? I implemented two methods from scratch, symmetric quantization (8 to 2 bits, per tensor / row / group of 128) and truncated-SVD low-rank approximation, and measured WikiText-2 perplexity. Quantization with groups of 128 is nearly lossless at 8 bits and remains usable at 4 bits (perplexity 16.2 vs 11.5); one scale per matrix fails because LLM weights contain extreme outliers (up to 64 standard deviations). Low-rank approximation breaks the model at every budget tested, even at 14.4 bits per weight (perplexity above 26,000): the singular value spectra of most layers are almost as flat as those of a random matrix, so every direction carries information.
 
 ## La question
 
@@ -32,11 +32,11 @@ La compression est **simulée** : les poids compressés sont reconvertis en fp16
 
 ## Résultats
 
-### Quantification
+### Perplexité des deux méthodes
 
 ![Perplexité en fonction des bits par paramètre](figures/ppl_vs_bits.png)
 
-Perplexité WikiText-2 (modèle d'origine : **11,52**) :
+**Quantification**, perplexité WikiText-2 (modèle d'origine : **11,52**) :
 
 | Bits | 1 échelle / matrice | 1 échelle / ligne | Groupes de 128 |
 | --- | --- | --- | --- |
@@ -45,7 +45,18 @@ Perplexité WikiText-2 (modèle d'origine : **11,52**) :
 | 3 | 2,9 × 10⁵ | 1,8 × 10⁵ | **253** |
 | 2 | 2,8 × 10⁵ | 2,2 × 10⁷ | 3,5 × 10⁷ |
 
+**Rang faible** :
+
+| `rank_ratio` | Bits par poids | Perplexité |
+| --- | --- | --- |
+| 0,9 | 14,4 | 2,7 × 10⁴ |
+| 0,75 | 12,0 | 6,4 × 10⁴ |
+| 0,5 | 8,0 | 2,4 × 10⁵ |
+| 0,25 | 4,0 | 2,5 × 10⁵ |
+
 Au-delà d'une perplexité d'environ 1 000, le modèle ne produit plus que du bruit et les écarts entre configurations n'ont plus de sens.
+
+Vérification : au rang plein, la SVD retrouve exactement la perplexité de référence. Sur un extrait de 2 048 tokens, même `rank_ratio` = 1, qui ne fait gagner aucune place, fait passer la perplexité de 9,4 à plus de 15 000.
 
 ### Poids extrêmes
 
@@ -76,11 +87,11 @@ Avant le LLM, les deux fonctions ont été testées sur un petit réseau (784 �
 
 ## Ce qu'on observe et pourquoi
 
-**En bref : la quantification par petits groupes est la méthode robuste ; le rang faible devrait s'effondrer, car l'information des poids est répartie sur presque toutes les directions.**
+**En bref : la quantification par petits groupes est la méthode robuste ; le rang faible détruit le modèle à tous les budgets testés, car l'information des poids est répartie sur presque toutes les directions.**
 
 **Quantification.** Le modèle ne perd presque rien en 8 bits (11,53 contre 11,52). En 4 bits, tout dépend de la granularité : 16,2 avec des groupes de 128, alors qu'une seule échelle par matrice détruit le modèle. La cause : des poids extrêmes, jusqu'à 64 écarts-types dans Qwen, qui élargissent les crans de tout leur groupe. Des groupes plus petits limitent les poids pénalisés. En 3 bits, même les groupes de 128 ne suffisent plus.
 
-**Rang faible.** Les spectres de `down_proj` et `v_proj` sont presque aussi plats que celui d'une matrice aléatoire : toutes les directions portent une information comparable, et en supprimer devrait coûter cher, surtout dans le MLP, qui représente environ 88 % des poids. `q_proj`, nettement de rang faible, fait exception. Sur MNIST, le rang faible s'effondrait déjà bien plus vite que la quantification ; la grille sur Qwen confirmera ou non.
+**Rang faible.** Même à 14,4 bits par poids, la perplexité dépasse 26 000, alors que la quantification en 4 bits reste à 16,2. Les spectres de `down_proj` et `v_proj` expliquent cet échec : ils sont presque aussi plats que celui d'une matrice aléatoire, donc toutes les directions portent une information comparable, et en supprimer coûte cher, surtout dans le MLP, qui représente environ 88 % des poids. `q_proj`, nettement de rang faible, fait exception. Sur MNIST, le rang faible perdait déjà plus que la quantification, mais restait utilisable ; un LLM y est bien plus sensible.
 
 **Deux erreurs de nature différente.** La quantification ajoute un petit bruit à tous les poids, que le modèle tolère tant qu'il reste assez de bits ; le rang faible supprime des directions entières.
 
@@ -92,11 +103,11 @@ Avant le LLM, les deux fonctions ont été testées sur un petit réseau (784 �
 - **Méthodes de base** : arrondi au plus proche, sans calibration sur des données ni correction d'erreur.
 - **Perplexité non directement comparable aux articles** : la fenêtre glissante donne plus de contexte à chaque token qu'une évaluation par fenêtres disjointes, donc une perplexité plus basse.
 
-## En cours
+## Pour aller plus loin
 
-- [x] Quantification : grille complète sur Qwen
-- [x] Analyse des poids : valeurs extrêmes et spectre
-- [ ] Rang faible : grille `rank_ratio` ∈ {0,9 ; 0,75 ; 0,5 ; 0,25} sur Qwen, sur le même graphique
+- Récupérer la qualité perdue en 3 bits en entraînant des adaptateurs LoRA sur le modèle quantifié.
+- Combiner les deux méthodes : quantifier, puis corriger l'erreur avec un terme de rang faible.
+- Évaluer quelques configurations sur des tâches de raisonnement plutôt que sur la seule perplexité.
 
 ## Reproduire
 
@@ -106,6 +117,7 @@ pytest                                   # tests des deux fonctions de compressi
 python -m scripts.mnist_warmup           # échauffement MNIST (CPU, ~1 min)
 python -m scripts.analyze_weights        # poids extrêmes et spectre (CPU, ~1 min)
 python -m scripts.run_quant              # grille de quantification (GPU, ~1 h sur T4)
+python -m scripts.run_lowrank            # grille de rang faible (GPU, ~20 min sur T4)
 python -m scripts.plot                   # courbe à partir de results/*.csv
 ```
 

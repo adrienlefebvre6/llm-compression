@@ -1,0 +1,5 @@
+method,bits,granularity,rank_ratio,bits_per_param,ppl,seconds
+lowrank,,,0.9,14.3797,26840.05638219877,308.6
+lowrank,,,0.75,11.9913,64043.69014625247,316.7
+lowrank,,,0.5,7.9942,243676.4808872258,315.6
+lowrank,,,0.25,3.9971,247203.80134252296,315.3
