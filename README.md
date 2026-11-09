@@ -80,7 +80,7 @@ Valeurs singulières σᵢ / σ₁, triées, pour trois types de couches au déb
 
 Avant le LLM, les deux fonctions ont été testées sur un petit réseau (784 → 256 → 256 → 10, précision de référence 97,6 %), à taille égale. Garder une fraction `rank_ratio` des poids en 16 bits coûte environ 16 × `rank_ratio` bits par poids : `rank_ratio` = 0,5 correspond donc à 8 bits, et 0,25 à 4 bits.
 
-| Bits par poids | Quantification (groupes de 16) | Rang faible |
+| Bits par poids | Quantification (une échelle par matrice) | Rang faible |
 | --- | --- | --- |
 | 8 | 97,6 % | 75,4 % (`rank_ratio` = 0,5) |
 | 4 | 97,5 % | 32,5 % (`rank_ratio` = 0,25) |
