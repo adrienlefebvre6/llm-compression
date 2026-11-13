@@ -1,6 +1,6 @@
 """Étape 0 : échauffement sur MNIST.
 
-Entraîne un petit MLP (784 → 256 → 256 → 10), puis mesure sa précision quand on
+Entraîne un petit MLP (784, 256, 256 puis 10 neurones), puis mesure sa précision quand on
 compresse les poids de ses trois couches nn.Linear avec quantize() et lowrank_approx().
 
 Lancement, depuis la racine du dépôt :
